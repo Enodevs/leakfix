@@ -409,8 +409,8 @@
 </div>
 
 {#if showModal}
-        <div class="modal-backdrop" transition:fade={{ duration: 150 }} onclick={() => showModal = false} role="dialog" aria-modal="true">
-                <div class="modal-card" transition:fly={{ y: 16, duration: 220, opacity: 0 }} onclick={(e) => e.stopPropagation()}>
+        <div class="modal-backdrop" transition:fade={{ duration: 150 }} onclick={() => showModal = false} onkeydown={(e) => e.key === 'Escape' && (showModal = false)} role="presentation">
+                <div class="modal-card" transition:fly={{ y: 16, duration: 220, opacity: 0 }} onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Recovery messages" tabindex="-1">
 
                         <div class="modal-header">
                                 <div>
