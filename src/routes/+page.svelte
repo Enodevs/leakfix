@@ -4,15 +4,44 @@
 
         type View = 'landing' | 'scanning' | 'results' | 'recovering' | 'recovered';
 
+        const insights = [
+                { label: 'Insight', text: 'Customers who fail once are 2× more likely to complete payment within 6 hours.' },
+                { label: 'Data point', text: 'SMS reminders sent within 30 minutes recover 3× more revenue than those sent the next day.' },
+                { label: 'Insight', text: '67% of abandoned checkouts are recoverable — the customer wanted to pay, something just went wrong.' },
+                { label: 'Benchmark', text: 'The average merchant using LeakFix recovers ₦180,000 in their first 7 days.' },
+                { label: 'Pattern', text: 'Payment failures spike on Fridays. Most customers retry by Sunday if sent a single reminder.' },
+                { label: 'Data point', text: 'A well-timed payment reminder has a 34% open rate — higher than most marketing emails.' },
+                { label: 'Insight', text: 'Card declines are often temporary. 1 in 3 customers retries successfully with the same card within 48 hours.' },
+                { label: 'Benchmark', text: 'Merchants who follow up within 1 hour recover 58% of failed transactions on average.' },
+        ];
+
+        const smsTemplates = [
+                { from: 'LeakFix · SMS', lines: ['Hi, your payment didn\'t go through.', 'Complete it here: pay.link/r8x2k'], time: 'Delivered · just now' },
+                { from: 'LeakFix · SMS', lines: ['Quick reminder — your order is waiting.', 'Retry your payment: pay.link/m3p9q'], time: 'Delivered · just now' },
+                { from: 'LeakFix · Email', lines: ['We noticed your payment failed. No worries —', 'your spot is still reserved: pay.link/v7j1n'], time: 'Delivered · just now' },
+                { from: 'LeakFix · SMS', lines: ['Hey! Your payment needs a moment of attention.', 'It only takes a second: pay.link/t5w4r'], time: 'Delivered · just now' },
+                { from: 'LeakFix · Email', lines: ['Your payment didn\'t complete, but we saved your cart.', 'Finish checkout here: pay.link/k2d8s'], time: 'Delivered · just now' },
+                { from: 'LeakFix · SMS', lines: ['Still thinking it over? Your payment link is active.', 'Complete when ready: pay.link/b6f0y'], time: 'Delivered · just now' },
+        ];
+
+        function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
+        function pickN<T>(arr: T[], n: number): T[] {
+                const shuffled = [...arr].sort(() => Math.random() - 0.5);
+                return shuffled.slice(0, n);
+        }
+
         let view = $state<View>('landing');
         let activeFilter = $state<'all' | 'failed' | 'abandoned' | 'success'>('all');
         let scanProgress = $state(0);
         let recoverProgress = $state(0);
         let showModal = $state(false);
+        let activeInsight = $state(insights[0]);
+        let activeMessages = $state(smsTemplates.slice(0, 3));
 
         function startScan() {
                 view = 'scanning';
                 scanProgress = 0;
+                activeInsight = pick(insights);
                 const steps = [10, 30, 55, 72, 88, 100];
                 steps.forEach((target, i) => {
                         setTimeout(() => {
@@ -157,25 +186,39 @@
                 <!-- SCANNING VIEW -->
                 {:else if view === 'scanning'}
                         <div class="scanning-view" transition:fade={{ duration: 180 }}>
-                                <div class="scanning-inner">
+                                <div class="scanning-card">
                                         <div class="scan-icon-wrap">
                                                 <div class="scan-pulse"></div>
                                                 <div class="scan-icon">⟳</div>
                                         </div>
-                                        <h2 class="scan-title">Scanning your transactions…</h2>
-                                        <p class="scan-sub">Connecting to Paystack · Analysing payment data</p>
 
-                                        <div class="progress-track">
-                                                <div class="progress-bar" style="width: {scanProgress}%"></div>
+                                        <div class="scan-text">
+                                                <h2 class="scan-title">Scanning your transactions</h2>
+                                                <p class="scan-sub">Connecting to Paystack and analysing payment data</p>
                                         </div>
-                                        <span class="progress-label">{scanProgress}%</span>
+
+                                        <div class="scan-progress-block">
+                                                <div class="scan-progress-row">
+                                                        <span class="progress-label">{scanProgress}% complete</span>
+                                                </div>
+                                                <div class="progress-track">
+                                                        <div class="progress-bar" style="width: {scanProgress}%"></div>
+                                                </div>
+                                        </div>
 
                                         <div class="scan-steps">
-                                                <span class:done={scanProgress >= 30}>Fetching transactions</span>
-                                                <span class="sep">·</span>
-                                                <span class:done={scanProgress >= 55}>Detecting failures</span>
-                                                <span class="sep">·</span>
-                                                <span class:done={scanProgress >= 88}>Computing losses</span>
+                                                <div class="scan-step" class:step-done={scanProgress >= 30}>
+                                                        <span class="step-dot"></span>
+                                                        <span>Fetching transactions</span>
+                                                </div>
+                                                <div class="scan-step" class:step-done={scanProgress >= 55}>
+                                                        <span class="step-dot"></span>
+                                                        <span>Detecting failures</span>
+                                                </div>
+                                                <div class="scan-step" class:step-done={scanProgress >= 88}>
+                                                        <span class="step-dot"></span>
+                                                        <span>Computing losses</span>
+                                                </div>
                                         </div>
                                 </div>
                         </div>
@@ -199,8 +242,8 @@
                                 <!-- Insight card -->
                                 <div class="insight-wrap">
                                         <div class="insight-card">
-                                                <span class="insight-label">Insight</span>
-                                                <p class="insight-text">Customers who fail once are 2× more likely to complete payment within 6 hours.</p>
+                                                <span class="insight-label">{activeInsight.label}</span>
+                                                <p class="insight-text">{activeInsight.text}</p>
                                         </div>
                                 </div>
 
@@ -337,7 +380,7 @@
                                                 <h2 class="success-amount">₦32,000 recovered</h2>
                                                 <p class="success-body">Reminders sent to 6 customers</p>
                                                 <div class="success-actions">
-                                                        <button class="btn-primary" onclick={() => showModal = true}>View messages</button>
+                                                        <button class="btn-primary" onclick={() => { activeMessages = pickN(smsTemplates, 3); showModal = true; }}>View messages</button>
                                                         <button class="btn-outline" onclick={goHome}>Back</button>
                                                 </div>
                                         </div>
@@ -354,18 +397,25 @@
                 <div class="modal-card" transition:fly={{ y: 16, duration: 220, opacity: 0 }} onclick={(e) => e.stopPropagation()}>
 
                         <div class="modal-header">
-                                <span class="modal-label">Recovery message</span>
+                                <div>
+                                        <span class="modal-label">Recovery messages</span>
+                                        <p class="modal-sub">Sent to {activeMessages.length} customers</p>
+                                </div>
                                 <button class="modal-close" onclick={() => showModal = false} aria-label="Close">✕</button>
                         </div>
 
-                        <!-- SMS bubble -->
-                        <div class="sms-wrap">
-                                <div class="sms-meta">LeakFix · SMS</div>
-                                <div class="sms-bubble">
-                                        <p>Hi, your payment didn't go through.</p>
-                                        <p>Complete it here: <span class="sms-link">pay.link/example</span></p>
-                                </div>
-                                <div class="sms-time">Delivered · just now</div>
+                        <div class="sms-list">
+                                {#each activeMessages as msg, i}
+                                        <div class="sms-wrap" style="animation-delay: {i * 60}ms">
+                                                <div class="sms-meta">{msg.from}</div>
+                                                <div class="sms-bubble">
+                                                        {#each msg.lines as line, j}
+                                                                <p>{#if j === msg.lines.length - 1}{@html line.replace(/(pay\.link\/\w+)/, '<span class="sms-link">$1</span>')}{:else}{line}{/if}</p>
+                                                        {/each}
+                                                </div>
+                                                <div class="sms-time">{msg.time}</div>
+                                        </div>
+                                {/each}
                         </div>
 
                 </div>
@@ -670,24 +720,31 @@
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                min-height: calc(100vh - 120px);
+                min-height: calc(100vh - 64px);
+                padding: 40px 24px;
         }
 
-        .scanning-inner {
-                text-align: center;
-                max-width: 480px;
+        .scanning-card {
+                background: #ffffff;
+                border-radius: 24px;
+                padding: 48px 40px;
+                box-shadow: 0px 2px 8px rgba(0,0,0,0.04), 0px 0px 0px 1px rgba(0,0,0,0.03);
+                max-width: 440px;
                 width: 100%;
-                padding: 40px 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 32px;
         }
 
         .scan-icon-wrap {
                 position: relative;
                 width: 72px;
                 height: 72px;
-                margin: 0 auto 28px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                flex-shrink: 0;
         }
 
         .scan-pulse {
@@ -723,28 +780,49 @@
                 to { transform: rotate(360deg); }
         }
 
+        .scan-text {
+                text-align: center;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+        }
+
         .scan-title {
                 font-family: 'DM Sans', sans-serif;
-                font-size: 26px;
+                font-size: 22px;
                 font-weight: 700;
                 color: #000000;
-                letter-spacing: -0.5px;
-                margin-bottom: 8px;
+                letter-spacing: -0.4px;
+                margin: 0;
         }
 
         .scan-sub {
                 font-family: 'Inter', sans-serif;
                 font-size: 14px;
                 color: #888888;
-                margin-bottom: 32px;
+                line-height: 1.5;
+                margin: 0;
+        }
+
+        .scan-progress-block {
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+        }
+
+        .scan-progress-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
         }
 
         .progress-track {
                 background: #e8e4e0;
                 border-radius: 100px;
-                height: 6px;
+                height: 5px;
                 overflow: hidden;
-                margin-bottom: 10px;
+                width: 100%;
         }
 
         .progress-bar {
@@ -757,24 +835,39 @@
         .progress-label {
                 font-family: 'Inter', sans-serif;
                 font-size: 12px;
-                font-weight: 600;
-                color: #333333;
+                font-weight: 500;
+                color: #888888;
         }
 
         .scan-steps {
+                width: 100%;
                 display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 8px;
-                margin-top: 20px;
-                font-family: 'Inter', sans-serif;
-                font-size: 12px;
-                color: #bbbbbb;
+                flex-direction: column;
+                gap: 10px;
         }
 
-        .scan-steps span { transition: color 0.3s; }
-        .scan-steps .done { color: #000000; }
-        .scan-steps .sep { color: #d6d6d6; }
+        .scan-step {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-family: 'Inter', sans-serif;
+                font-size: 13px;
+                color: #cccccc;
+                transition: color 0.3s;
+        }
+
+        .scan-step.step-done { color: #000000; }
+
+        .step-dot {
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: #e0dcd8;
+                flex-shrink: 0;
+                transition: background 0.3s;
+        }
+
+        .scan-step.step-done .step-dot { background: #000000; }
 
         /* ---- RECOVERING VIEW ---- */
         .recovering-view {
@@ -1390,24 +1483,36 @@
                 border-radius: 20px;
                 padding: 24px;
                 width: 100%;
-                max-width: 360px;
+                max-width: 380px;
                 box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
         }
 
         .modal-header {
                 display: flex;
-                align-items: center;
+                align-items: flex-start;
                 justify-content: space-between;
                 margin-bottom: 20px;
         }
 
         .modal-label {
+                font-family: 'DM Sans', sans-serif;
+                font-size: 15px;
+                font-weight: 700;
+                color: #000000;
+                letter-spacing: -0.2px;
+        }
+
+        .modal-sub {
                 font-family: 'Inter', sans-serif;
                 font-size: 12px;
-                font-weight: 600;
-                letter-spacing: 0.07em;
-                text-transform: uppercase;
                 color: #999999;
+                margin: 3px 0 0;
+        }
+
+        .sms-list {
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
         }
 
         .modal-close {
