@@ -8,6 +8,7 @@
         let activeFilter = $state<'all' | 'failed' | 'abandoned' | 'success'>('all');
         let scanProgress = $state(0);
         let recoverProgress = $state(0);
+        let showModal = $state(false);
 
         function startScan() {
                 view = 'scanning';
@@ -328,7 +329,7 @@
                                                 <h2 class="success-amount">₦32,000 recovered</h2>
                                                 <p class="success-body">Reminders sent to 6 customers</p>
                                                 <div class="success-actions">
-                                                        <button class="btn-primary">View messages</button>
+                                                        <button class="btn-primary" onclick={() => showModal = true}>View messages</button>
                                                         <button class="btn-outline" onclick={goHome}>Back</button>
                                                 </div>
                                         </div>
@@ -339,6 +340,29 @@
 
         </div>
 </div>
+
+{#if showModal}
+        <div class="modal-backdrop" transition:fade={{ duration: 150 }} onclick={() => showModal = false} role="dialog" aria-modal="true">
+                <div class="modal-card" transition:fly={{ y: 16, duration: 220, opacity: 0 }} onclick={(e) => e.stopPropagation()}>
+
+                        <div class="modal-header">
+                                <span class="modal-label">Recovery message</span>
+                                <button class="modal-close" onclick={() => showModal = false} aria-label="Close">✕</button>
+                        </div>
+
+                        <!-- SMS bubble -->
+                        <div class="sms-wrap">
+                                <div class="sms-meta">LeakFix · SMS</div>
+                                <div class="sms-bubble">
+                                        <p>Hi, your payment didn't go through.</p>
+                                        <p>Complete it here: <span class="sms-link">pay.link/example</span></p>
+                                </div>
+                                <div class="sms-time">Delivered · just now</div>
+                        </div>
+
+                </div>
+        </div>
+{/if}
 
 <style>
         /* Navbar */
@@ -1296,5 +1320,100 @@
                         grid-template-columns: 1fr;
                 }
                 .hero { padding: 64px 0 30px; }
+        }
+
+        /* ---- MESSAGE MODAL ---- */
+        .modal-backdrop {
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.32);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 999;
+                padding: 24px;
+        }
+
+        .modal-card {
+                background: #ffffff;
+                border-radius: 20px;
+                padding: 24px;
+                width: 100%;
+                max-width: 360px;
+                box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+        }
+
+        .modal-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 20px;
+        }
+
+        .modal-label {
+                font-family: 'Inter', sans-serif;
+                font-size: 12px;
+                font-weight: 600;
+                letter-spacing: 0.07em;
+                text-transform: uppercase;
+                color: #999999;
+        }
+
+        .modal-close {
+                background: none;
+                border: none;
+                cursor: pointer;
+                font-size: 14px;
+                color: #aaaaaa;
+                padding: 2px 6px;
+                border-radius: 6px;
+                transition: color 0.15s;
+        }
+
+        .modal-close:hover { color: #333333; }
+
+        .sms-wrap {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+        }
+
+        .sms-meta {
+                font-family: 'Inter', sans-serif;
+                font-size: 11px;
+                font-weight: 600;
+                color: #bbbbbb;
+                letter-spacing: 0.04em;
+        }
+
+        .sms-bubble {
+                background: #f5f2f0;
+                border-radius: 4px 16px 16px 16px;
+                padding: 14px 16px;
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+        }
+
+        .sms-bubble p {
+                font-family: 'Inter', sans-serif;
+                font-size: 15px;
+                color: #111111;
+                line-height: 1.5;
+                margin: 0;
+        }
+
+        .sms-link {
+                color: #7c3aed;
+                font-weight: 500;
+                text-decoration: underline;
+                text-underline-offset: 2px;
+        }
+
+        .sms-time {
+                font-family: 'Inter', sans-serif;
+                font-size: 11px;
+                color: #cccccc;
+                text-align: right;
         }
 </style>
