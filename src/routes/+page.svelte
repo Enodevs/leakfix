@@ -196,6 +196,14 @@
                                         </div>
                                 </div>
 
+                                <!-- Insight card -->
+                                <div class="insight-wrap">
+                                        <div class="insight-card">
+                                                <span class="insight-label">Insight</span>
+                                                <p class="insight-text">Customers who fail once are 2× more likely to complete payment within 6 hours.</p>
+                                        </div>
+                                </div>
+
                                 <!-- Failed transactions list -->
                                 <section class="failed-section">
                                         <h3 class="failed-title">Failed transactions</h3>
@@ -1320,6 +1328,42 @@
                         grid-template-columns: 1fr;
                 }
                 .hero { padding: 64px 0 30px; }
+        }
+
+        /* ---- INSIGHT CARD ---- */
+        .insight-wrap {
+                display: flex;
+                justify-content: center;
+                padding: 0 0 24px;
+        }
+
+        .insight-card {
+                background: #91e0ff;
+                border-radius: 24px;
+                padding: 40px;
+                max-width: 600px;
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+        }
+
+        .insight-label {
+                font-family: 'Inter', sans-serif;
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: 0.1em;
+                text-transform: uppercase;
+                color: #0369a1;
+        }
+
+        .insight-text {
+                font-family: 'DM Sans', sans-serif;
+                font-size: 17px;
+                font-weight: 500;
+                color: #0c2a3a;
+                line-height: 1.55;
+                margin: 0;
         }
 
         /* ---- MESSAGE MODAL ---- */
