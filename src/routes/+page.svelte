@@ -1,10 +1,26 @@
 <script lang="ts">
+        import { transactions, lostAmount, formatNaira } from '$lib/data/transactions';
+
         let scanning = false;
+        let activeFilter: 'all' | 'failed' | 'abandoned' | 'success' = 'all';
 
         function handleScan() {
                 scanning = true;
                 setTimeout(() => scanning = false, 2000);
         }
+
+        const filtered = $derived(
+                activeFilter === 'all'
+                        ? transactions
+                        : transactions.filter(t => t.status === activeFilter)
+        );
+
+        const statusCounts = $derived({
+                all:       transactions.length,
+                failed:    transactions.filter(t => t.status === 'failed').length,
+                abandoned: transactions.filter(t => t.status === 'abandoned').length,
+                success:   transactions.filter(t => t.status === 'success').length,
+        });
 </script>
 
 <header class="navbar">
@@ -65,6 +81,60 @@
                                         <h3 class="card-title">Subscription churn</h3>
                                         <p class="card-body">Recurring charges fail quietly. Subscribers lose access before they even know there was an issue.</p>
                                 </div>
+                        </div>
+                </section>
+
+                <!-- Transactions -->
+                <section class="txn-section">
+                        <div class="txn-header">
+                                <div>
+                                        <h2 class="section-title" style="margin-bottom:4px">Transaction scan results</h2>
+                                        <p class="txn-subtitle">Showing {transactions.length} transactions from your Paystack account</p>
+                                </div>
+                                <div class="lost-badge">
+                                        <span class="lost-label">Total lost</span>
+                                        <span class="lost-amount">{formatNaira(lostAmount)}</span>
+                                </div>
+                        </div>
+
+                        <div class="txn-filters">
+                                {#each (['all', 'failed', 'abandoned', 'success'] as const) as f}
+                                        <button
+                                                class="filter-btn"
+                                                class:active={activeFilter === f}
+                                                onclick={() => activeFilter = f}
+                                        >
+                                                {f.charAt(0).toUpperCase() + f.slice(1)}
+                                                <span class="filter-count">{statusCounts[f]}</span>
+                                        </button>
+                                {/each}
+                        </div>
+
+                        <div class="txn-card">
+                                <table class="txn-table">
+                                        <thead>
+                                                <tr>
+                                                        <th>ID</th>
+                                                        <th>Customer</th>
+                                                        <th>Amount</th>
+                                                        <th>Status</th>
+                                                </tr>
+                                        </thead>
+                                        <tbody>
+                                                {#each filtered as txn}
+                                                        <tr>
+                                                                <td class="txn-id">{txn.id}</td>
+                                                                <td class="txn-email">{txn.customer_email}</td>
+                                                                <td class="txn-amount">{formatNaira(txn.amount)}</td>
+                                                                <td>
+                                                                        <span class="status-pill status-{txn.status}">
+                                                                                {txn.status}
+                                                                        </span>
+                                                                </td>
+                                                        </tr>
+                                                {/each}
+                                        </tbody>
+                                </table>
                         </div>
                 </section>
 
@@ -330,6 +400,196 @@
                 font-size: 14px;
                 color: #333333;
                 line-height: 1.65;
+        }
+
+        /* Transactions */
+        .txn-section {
+                margin-top: 30px;
+        }
+
+        .txn-header {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 16px;
+                margin-bottom: 16px;
+        }
+
+        .txn-subtitle {
+                font-family: 'Inter', sans-serif;
+                font-size: 14px;
+                color: #888888;
+                margin-top: 4px;
+        }
+
+        .lost-badge {
+                background: #ffffff;
+                border: 1px solid #d6d6d6;
+                border-radius: 16px;
+                padding: 16px 24px;
+                box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.04);
+                display: flex;
+                flex-direction: column;
+                align-items: flex-end;
+                gap: 4px;
+                flex-shrink: 0;
+        }
+
+        .lost-label {
+                font-family: 'Inter', sans-serif;
+                font-size: 11px;
+                font-weight: 500;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                color: #888888;
+        }
+
+        .lost-amount {
+                font-family: 'Playfair Display', serif;
+                font-size: 28px;
+                font-weight: 700;
+                color: #000000;
+                letter-spacing: -0.8px;
+                line-height: 1;
+        }
+
+        .txn-filters {
+                display: flex;
+                gap: 8px;
+                margin-bottom: 12px;
+        }
+
+        .filter-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                font-family: 'Inter', sans-serif;
+                font-size: 13px;
+                font-weight: 500;
+                color: #333333;
+                background: #ffffff;
+                border: 1px solid #d6d6d6;
+                border-radius: 8px;
+                padding: 7px 14px;
+                cursor: pointer;
+                transition: background 0.12s, border-color 0.12s, color 0.12s;
+        }
+
+        .filter-btn:hover {
+                background: #f5f2f0;
+        }
+
+        .filter-btn.active {
+                background: #000000;
+                border-color: #000000;
+                color: #ffffff;
+        }
+
+        .filter-btn.active .filter-count {
+                background: rgba(255, 255, 255, 0.2);
+                color: #ffffff;
+        }
+
+        .filter-count {
+                background: #f5f2f0;
+                color: #333333;
+                font-size: 11px;
+                font-weight: 600;
+                border-radius: 100px;
+                padding: 1px 7px;
+                transition: background 0.12s, color 0.12s;
+        }
+
+        .txn-card {
+                background: #ffffff;
+                border-radius: 24px;
+                box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.04);
+                overflow: hidden;
+        }
+
+        .txn-table {
+                width: 100%;
+                border-collapse: collapse;
+        }
+
+        .txn-table thead tr {
+                border-bottom: 1px solid #d6d6d6;
+        }
+
+        .txn-table th {
+                font-family: 'Inter', sans-serif;
+                font-size: 11px;
+                font-weight: 600;
+                letter-spacing: 0.07em;
+                text-transform: uppercase;
+                color: #888888;
+                text-align: left;
+                padding: 16px 24px;
+        }
+
+        .txn-table tbody tr {
+                border-bottom: 1px solid #f0eeed;
+                transition: background 0.1s;
+        }
+
+        .txn-table tbody tr:last-child {
+                border-bottom: none;
+        }
+
+        .txn-table tbody tr:hover {
+                background: #faf9f8;
+        }
+
+        .txn-table td {
+                padding: 16px 24px;
+                vertical-align: middle;
+        }
+
+        .txn-id {
+                font-family: 'Inter', sans-serif;
+                font-size: 13px;
+                font-weight: 500;
+                color: #888888;
+                letter-spacing: 0.02em;
+        }
+
+        .txn-email {
+                font-family: 'Inter', sans-serif;
+                font-size: 14px;
+                color: #000000;
+        }
+
+        .txn-amount {
+                font-family: 'Inter', sans-serif;
+                font-size: 14px;
+                font-weight: 600;
+                color: #000000;
+                letter-spacing: -0.2px;
+        }
+
+        .status-pill {
+                display: inline-block;
+                font-family: 'Inter', sans-serif;
+                font-size: 12px;
+                font-weight: 500;
+                border-radius: 100px;
+                padding: 4px 12px;
+                text-transform: capitalize;
+        }
+
+        .status-success {
+                background: #e8f5e9;
+                color: #2e7d32;
+        }
+
+        .status-failed {
+                background: #fdecea;
+                color: #c62828;
+        }
+
+        .status-abandoned {
+                background: #fff8e1;
+                color: #e65100;
         }
 
         /* CTA Strip */
