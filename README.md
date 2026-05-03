@@ -1,43 +1,31 @@
-# sv
+# LeakFix
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+**Revenue recovery for Paystack merchants.**
 
-## Creating a project
+## The problem
 
-If you're seeing this, you've probably already done this step. Congrats!
+Paystack merchants silently lose 15–20% of revenue to failed payments, abandoned checkouts, and expired cards — with no built-in way to recover it.
 
-```sh
-# create a new project
-npx sv create my-app
+## What it does
+
+LeakFix scans your Paystack transaction history, surfaces every failed and abandoned payment, and sends targeted recovery messages to get customers back.
+
+## How to run
+
+```bash
+bun install
+bun run dev
 ```
 
-To recreate this project with the same configuration:
+App runs at `http://localhost:5000`
 
-```sh
-# recreate this project
-bun x sv@0.15.2 create --template minimal --types ts --add tailwindcss="plugins:typography,forms" --install bun leakfix
-```
+## Demo flow (< 30 seconds)
 
-## Developing
+1. Land on homepage → click **"Scan for leaks"**
+2. Watch scan complete → see total amount lost
+3. Click **"Recover this money"**
+4. See recovery confirmation → click **"View messages"** to see what was sent
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+## Tech
 
-```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
-
-```sh
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
-# leakfix
+SvelteKit · Tailwind CSS v4 · TypeScript · Bun

@@ -1,24 +1,37 @@
 # LeakFix
 
-Revenue recovery tool for Paystack merchants. Surfaces failed, abandoned, and churned payments so merchants can recover lost revenue.
+Revenue recovery SaaS demo for Paystack merchants. Surfaces failed, abandoned, and churned payments so merchants can recover lost revenue.
 
 ## Tech Stack
 
 - **Framework**: SvelteKit 2 (Svelte 5 runes mode)
 - **Styling**: Tailwind CSS v4 + component-scoped `<style>` blocks
-- **Fonts**: Playfair Display (headings) + Inter (body/UI) via Google Fonts
+- **Fonts**: DM Sans 300–800 (headings/CTAs) + Inter (body/UI) via Google Fonts
+- **Icons**: Inline SVG (Lucide paths, no runtime dependency)
 - **Package manager**: Bun
 - **Build tool**: Vite 8
 
 ## Design System
 
 - Background: `#f5f2f0` (Cloud Canvas)
-- Cards: `#ffffff`, 24px radius, `0px 8px 16px rgba(0,0,0,0.04)` shadow
+- Cards: `#ffffff`, 24px radius, two-layer shadow, hover lift
 - Text: `#000000` headings, `#333333` body
 - Borders: `#d6d6d6` only
 - Primary accent (buttons): `#f1ccff` (Amethyst)
+- Insight card: `#91e0ff`, 16px radius, compact `20px 24px` padding
 - Max width: 1200px centered
-- Section spacing: 30px | Card padding: 40px | Element gaps: 16px
+- Section spacing: 32px | Element gaps: 16px
+- Nav/filter buttons: 10px radius
+
+## App Flow (5-state machine)
+
+`landing → scanning → results → recovering → recovered`
+
+- **landing**: Hero, stats row (₦2.4B, 18%, <1hr), 3-feature cards, CTA strip, footer
+- **scanning**: Animated progress bar, 3 scan steps with live check icons
+- **results**: Impact card (total lost in red), rotating insight card, failed/abandoned transaction list with filter tabs
+- **recovering**: Recovery animation
+- **recovered**: Success state with "View messages" modal (randomised SMS bubbles, 3 of 6 templates per open)
 
 ## Project Structure
 
@@ -27,29 +40,26 @@ src/
   lib/
     assets/         # favicon.svg
     data/
-      transactions.ts   # Mock transaction data (15 entries) + formatNaira + lostAmount
+      transactions.ts   # 18 diverse international mock transactions + formatNaira + lostAmount
   routes/
-    layout.css      # Tailwind import + Google Fonts + global resets
+    layout.css      # Google Fonts @import + Tailwind v4 + global resets
     +layout.svelte  # Root layout with favicon
-    +page.svelte    # Homepage (hero, stats, features, transactions table, CTA, footer)
+    +page.svelte    # Entire app (~1600 lines): all 5 views, all styles
 ```
 
 ## Key Data
 
 `src/lib/data/transactions.ts` exports:
-- `transactions`: Array of 15 mock entries with `id`, `customer_email`, `amount`, `status`
-- `lostAmount`: Computed sum of all `failed` + `abandoned` transactions
+- `transactions`: 18 entries — 6 failed, 5 abandoned, 7 success — diverse international names/emails
+- `lostAmount`: Sum of all `failed` + `abandoned` transactions
 - `formatNaira(amount)`: Formats numbers as `₦1,000,000`
 
-## Homepage Sections
+## Notes
 
-1. **Sticky navbar** — LeakFix logo (left) + Demo button (right)
-2. **Hero** — Headline, subtext, "Scan for leaks" CTA
-3. **Stats row** — 3 metric cards ($2.4M recovered, 18% avg, 72hrs)
-4. **Features** — 3-card grid (failed charges, abandoned checkouts, subscription churn)
-5. **Transactions table** — Filterable by status, shows total lost amount badge
-6. **CTA strip** — Bottom conversion section
-7. **Footer**
+- CSS import order in `layout.css`: Google Fonts `@import url(...)` MUST come before `@import 'tailwindcss'`
+- HMR console errors about `layout.css` and `favicon.svg` are transient flicker — not real bugs
+- Duplicate `.btn-primary` was removed; full-width override lives in `.success-actions .btn-primary`
+- `lucide-svelte` is installed but icons are inlined as raw SVG paths to avoid SSR module resolution issues
 
 ## Dev Server
 

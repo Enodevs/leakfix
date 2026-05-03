@@ -101,7 +101,8 @@
                 <div class="nav-right">
                         {#if view === 'results' || view === 'recovered'}
                                 <button class="btn-back" onclick={goHome} transition:fade={{ duration: 150 }}>
-                                        ← Back
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+                                        Back
                                 </button>
                         {/if}
                         <button class="btn-demo">Demo</button>
@@ -117,20 +118,20 @@
                         <div transition:fade={{ duration: 200 }}>
 
                                 <section class="hero">
-                                        <div class="hero-badge">Revenue recovery for Paystack merchants</div>
-                                        <h1 class="hero-headline">You're losing money.</h1>
-                                        <p class="hero-sub">Failed Paystack payments are silently eating your revenue.</p>
+                                        <div class="hero-badge">For Paystack merchants</div>
+                                        <h1 class="hero-headline">Your payments<br>are leaking.</h1>
+                                        <p class="hero-sub">Failed charges and abandoned checkouts drain 15–20% of revenue — silently, every day.</p>
                                         <div class="hero-actions">
                                                 <button class="btn-primary" onclick={startScan}>
                                                         Scan for leaks
                                                 </button>
-                                                <span class="hero-hint">No credit card required</span>
+                                                <span class="hero-hint">Free · No card required · Takes 10 seconds</span>
                                         </div>
                                 </section>
 
                                 <section class="stats-row">
                                         <div class="stat-card">
-                                                <span class="stat-value">$2.4M</span>
+                                                <span class="stat-value">₦2.4B</span>
                                                 <span class="stat-label">Recovered for merchants</span>
                                         </div>
                                         <div class="stat-card">
@@ -138,7 +139,7 @@
                                                 <span class="stat-label">Average revenue recovered</span>
                                         </div>
                                         <div class="stat-card">
-                                                <span class="stat-value">72hrs</span>
+                                                <span class="stat-value">&lt; 1hr</span>
                                                 <span class="stat-label">Typical time to first recovery</span>
                                         </div>
                                 </section>
@@ -147,17 +148,17 @@
                                         <h2 class="section-title">Where your money goes missing</h2>
                                         <div class="feature-grid">
                                                 <div class="card">
-                                                        <div class="card-icon">↯</div>
+                                                        <div class="card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
                                                         <h3 class="card-title">Failed charges</h3>
                                                         <p class="card-body">Insufficient funds, expired cards, and network drops fail silently — with no retry logic in place.</p>
                                                 </div>
                                                 <div class="card">
-                                                        <div class="card-icon">⊘</div>
+                                                        <div class="card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg></div>
                                                         <h3 class="card-title">Abandoned checkouts</h3>
                                                         <p class="card-body">Customers drop off mid-payment. No follow-up, no recovery. That's revenue left on the table.</p>
                                                 </div>
                                                 <div class="card">
-                                                        <div class="card-icon">↺</div>
+                                                        <div class="card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></div>
                                                         <h3 class="card-title">Subscription churn</h3>
                                                         <p class="card-body">Recurring charges fail quietly. Subscribers lose access before they even know there was an issue.</p>
                                                 </div>
@@ -208,15 +209,27 @@
 
                                         <div class="scan-steps">
                                                 <div class="scan-step" class:step-done={scanProgress >= 30}>
-                                                        <span class="step-dot"></span>
+                                                        {#if scanProgress >= 30}
+                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+                                                        {:else}
+                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>
+                                                        {/if}
                                                         <span>Fetching transactions</span>
                                                 </div>
                                                 <div class="scan-step" class:step-done={scanProgress >= 55}>
-                                                        <span class="step-dot"></span>
+                                                        {#if scanProgress >= 55}
+                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+                                                        {:else}
+                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>
+                                                        {/if}
                                                         <span>Detecting failures</span>
                                                 </div>
                                                 <div class="scan-step" class:step-done={scanProgress >= 88}>
-                                                        <span class="step-dot"></span>
+                                                        {#if scanProgress >= 88}
+                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+                                                        {:else}
+                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>
+                                                        {/if}
                                                         <span>Computing losses</span>
                                                 </div>
                                         </div>
@@ -242,7 +255,10 @@
                                 <!-- Insight card -->
                                 <div class="insight-wrap">
                                         <div class="insight-card">
-                                                <span class="insight-label">{activeInsight.label}</span>
+                                                <span class="insight-label">
+                                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+                                                        {activeInsight.label}
+                                                </span>
                                                 <p class="insight-text">{activeInsight.text}</p>
                                         </div>
                                 </div>
@@ -401,7 +417,7 @@
                                         <span class="modal-label">Recovery messages</span>
                                         <p class="modal-sub">Sent to {activeMessages.length} customers</p>
                                 </div>
-                                <button class="modal-close" onclick={() => showModal = false} aria-label="Close">✕</button>
+                                <button class="modal-close" onclick={() => showModal = false} aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
                         </div>
 
                         <div class="sms-list">
@@ -858,16 +874,10 @@
 
         .scan-step.step-done { color: #000000; }
 
-        .step-dot {
-                width: 6px;
-                height: 6px;
-                border-radius: 50%;
-                background: #e0dcd8;
+        .scan-step :global(svg) {
                 flex-shrink: 0;
-                transition: background 0.3s;
+                transition: opacity 0.2s;
         }
-
-        .scan-step.step-done .step-dot { background: #000000; }
 
         /* ---- RECOVERING VIEW ---- */
         .recovering-view {
@@ -1439,30 +1449,33 @@
 
         .insight-card {
                 background: #91e0ff;
-                border-radius: 24px;
-                padding: 40px;
+                border-radius: 16px;
+                padding: 20px 24px;
                 max-width: 600px;
                 width: 100%;
                 display: flex;
                 flex-direction: column;
-                gap: 12px;
+                gap: 8px;
         }
 
         .insight-label {
                 font-family: 'Inter', sans-serif;
                 font-size: 11px;
                 font-weight: 700;
-                letter-spacing: 0.1em;
+                letter-spacing: 0.08em;
                 text-transform: uppercase;
                 color: #0369a1;
+                display: flex;
+                align-items: center;
+                gap: 5px;
         }
 
         .insight-text {
-                font-family: 'DM Sans', sans-serif;
-                font-size: 17px;
-                font-weight: 500;
+                font-family: 'Inter', sans-serif;
+                font-size: 14px;
+                font-weight: 400;
                 color: #0c2a3a;
-                line-height: 1.55;
+                line-height: 1.6;
                 margin: 0;
         }
 
