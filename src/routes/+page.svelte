@@ -173,6 +173,22 @@
                                         </div>
                                 </div>
 
+                                <!-- Failed transactions list -->
+                                <section class="failed-section">
+                                        <h3 class="failed-title">Failed transactions</h3>
+                                        <div class="failed-list">
+                                                {#each transactions.filter(t => t.status === 'failed') as txn (txn.id)}
+                                                        <div class="failed-item">
+                                                                <div class="failed-left">
+                                                                        <span class="failed-email">{txn.customer_email}</span>
+                                                                        <span class="failed-amount">{formatNaira(txn.amount)}</span>
+                                                                </div>
+                                                                <span class="badge badge-{txn.status}">{txn.status}</span>
+                                                        </div>
+                                                {/each}
+                                        </div>
+                                </section>
+
                                 <!-- Summary strip -->
                                 <div class="results-summary">
                                         <div class="summary-card alert">
@@ -729,6 +745,83 @@
 
         .btn-recover:hover { background: #e8b8ff; transform: translateY(-1px); }
         .btn-recover:active { transform: translateY(0); }
+
+        /* ---- FAILED TRANSACTIONS ---- */
+        .failed-section {
+                max-width: 600px;
+                margin: 0 auto 30px;
+                width: 100%;
+        }
+
+        .failed-title {
+                font-family: 'DM Sans', sans-serif;
+                font-size: 13px;
+                font-weight: 600;
+                letter-spacing: 0.07em;
+                text-transform: uppercase;
+                color: #888888;
+                margin-bottom: 12px;
+                padding: 0 4px;
+        }
+
+        .failed-list {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+        }
+
+        .failed-item {
+                background: #ffffff;
+                border-radius: 14px;
+                padding: 16px 20px;
+                box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.04);
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 16px;
+        }
+
+        .failed-left {
+                display: flex;
+                flex-direction: column;
+                gap: 3px;
+                min-width: 0;
+        }
+
+        .failed-email {
+                font-family: 'Inter', sans-serif;
+                font-size: 14px;
+                color: #333333;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+        }
+
+        .failed-amount {
+                font-family: 'DM Sans', sans-serif;
+                font-size: 15px;
+                font-weight: 700;
+                color: #000000;
+                letter-spacing: -0.3px;
+        }
+
+        .badge {
+                display: inline-flex;
+                align-items: center;
+                font-family: 'Inter', sans-serif;
+                font-size: 11px;
+                font-weight: 500;
+                text-transform: capitalize;
+                border-radius: 10px;
+                border: 1px solid #d6d6d6;
+                padding: 4px 10px;
+                white-space: nowrap;
+                flex-shrink: 0;
+        }
+
+        .badge-failed   { color: #c62828; background: #fdecea; border-color: #f5c6c6; }
+        .badge-abandoned { color: #e65100; background: #fff8e1; border-color: #f5e0a6; }
+        .badge-success  { color: #2e7d32; background: #e8f5e9; border-color: #b2dfb4; }
 
         /* ---- RESULTS SCREEN ---- */
         .results-summary {
