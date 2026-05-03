@@ -2,11 +2,12 @@
         import { fade, fly } from 'svelte/transition';
         import { transactions, lostAmount, formatNaira } from '$lib/data/transactions';
 
-        type View = 'landing' | 'scanning' | 'results';
+        type View = 'landing' | 'scanning' | 'results' | 'recovering' | 'recovered';
 
         let view = $state<View>('landing');
         let activeFilter = $state<'all' | 'failed' | 'abandoned' | 'success'>('all');
         let scanProgress = $state(0);
+        let recoverProgress = $state(0);
 
         function startScan() {
                 view = 'scanning';
@@ -20,6 +21,27 @@
                                 }
                         }, i * 280 + 100);
                 });
+        }
+
+        function startRecovery() {
+                view = 'recovering';
+                recoverProgress = 0;
+                const steps = [15, 40, 65, 85, 100];
+                steps.forEach((target, i) => {
+                        setTimeout(() => {
+                                recoverProgress = target;
+                                if (i === steps.length - 1) {
+                                        setTimeout(() => { view = 'recovered'; }, 400);
+                                }
+                        }, i * 300 + 120);
+                });
+        }
+
+        function goHome() {
+                view = 'landing';
+                activeFilter = 'all';
+                scanProgress = 0;
+                recoverProgress = 0;
         }
 
         const filtered = $derived(
@@ -47,8 +69,8 @@
         <div class="navbar-inner">
                 <button class="nav-logo" onclick={() => { view = 'landing'; activeFilter = 'all'; }}>LeakFix</button>
                 <div class="nav-right">
-                        {#if view === 'results'}
-                                <button class="btn-back" onclick={() => { view = 'landing'; activeFilter = 'all'; }} transition:fade={{ duration: 150 }}>
+                        {#if view === 'results' || view === 'recovered'}
+                                <button class="btn-back" onclick={goHome} transition:fade={{ duration: 150 }}>
                                         ← Back
                                 </button>
                         {/if}
@@ -167,7 +189,7 @@
                                                 <p class="impact-eyebrow">Your scan is complete</p>
                                                 <h2 class="impact-amount">{formatNaira(lostAmount)}<span class="impact-lost"> LOST</span></h2>
                                                 <p class="impact-body">This was money you already earned… but never received.</p>
-                                                <button class="btn-recover" onclick={() => { view = 'landing'; activeFilter = 'all'; }}>
+                                                <button class="btn-recover" onclick={startRecovery}>
                                                         Recover this money
                                                 </button>
                                         </div>
@@ -278,6 +300,41 @@
                                 </footer>
 
                         </div>
+
+                <!-- RECOVERING VIEW -->
+                {:else if view === 'recovering'}
+                        <div class="recovering-view" transition:fade={{ duration: 180 }}>
+                                <div class="recovering-inner">
+                                        <div class="recover-icon-wrap">
+                                                <div class="recover-pulse"></div>
+                                                <div class="recover-icon">↑</div>
+                                        </div>
+                                        <h2 class="recover-title">Recovering your money…</h2>
+                                        <p class="recover-sub">Sending reminders · Retrying payments</p>
+                                        <div class="progress-track">
+                                                <div class="progress-bar recover-bar" style="width: {recoverProgress}%"></div>
+                                        </div>
+                                        <span class="progress-label">{recoverProgress}%</span>
+                                </div>
+                        </div>
+
+                <!-- RECOVERED VIEW -->
+                {:else if view === 'recovered'}
+                        <div class="recovered-view" transition:fly={{ y: 20, duration: 300, opacity: 0 }}>
+                                <div class="success-card-wrap">
+                                        <div class="success-card">
+                                                <div class="success-icon">✓</div>
+                                                <p class="success-eyebrow">Recovery complete</p>
+                                                <h2 class="success-amount">₦32,000 recovered</h2>
+                                                <p class="success-body">Reminders sent to 6 customers</p>
+                                                <div class="success-actions">
+                                                        <button class="btn-primary">View messages</button>
+                                                        <button class="btn-outline" onclick={goHome}>Back</button>
+                                                </div>
+                                        </div>
+                                </div>
+                        </div>
+
                 {/if}
 
         </div>
@@ -670,6 +727,183 @@
         .scan-steps span { transition: color 0.3s; }
         .scan-steps .done { color: #000000; }
         .scan-steps .sep { color: #d6d6d6; }
+
+        /* ---- RECOVERING VIEW ---- */
+        .recovering-view {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: calc(100vh - 64px);
+                padding: 40px 24px;
+        }
+
+        .recovering-inner {
+                text-align: center;
+                max-width: 400px;
+                width: 100%;
+        }
+
+        .recover-icon-wrap {
+                position: relative;
+                width: 64px;
+                height: 64px;
+                margin: 0 auto 28px;
+        }
+
+        .recover-pulse {
+                position: absolute;
+                inset: 0;
+                border-radius: 50%;
+                background: #f1ccff;
+                animation: pulse 1.4s ease-in-out infinite;
+        }
+
+        .recover-icon {
+                position: relative;
+                z-index: 1;
+                width: 64px;
+                height: 64px;
+                border-radius: 50%;
+                background: #000000;
+                color: #f1ccff;
+                font-size: 28px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 700;
+        }
+
+        .recover-title {
+                font-family: 'DM Sans', sans-serif;
+                font-weight: 700;
+                font-size: 26px;
+                color: #111111;
+                letter-spacing: -0.5px;
+                margin-bottom: 8px;
+        }
+
+        .recover-sub {
+                font-family: 'Inter', sans-serif;
+                font-size: 14px;
+                color: #888888;
+                margin-bottom: 28px;
+        }
+
+        .recover-bar {
+                background: #a855f7 !important;
+        }
+
+        /* ---- RECOVERED / SUCCESS VIEW ---- */
+        .recovered-view {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: calc(100vh - 64px);
+                padding: 40px 24px;
+        }
+
+        .success-card-wrap {
+                display: flex;
+                justify-content: center;
+                width: 100%;
+        }
+
+        .success-card {
+                background: #ffffff;
+                border-radius: 24px;
+                padding: 48px 40px;
+                box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.06);
+                text-align: center;
+                max-width: 480px;
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 12px;
+        }
+
+        .success-icon {
+                width: 56px;
+                height: 56px;
+                border-radius: 50%;
+                background: #f1ccff;
+                color: #6b21a8;
+                font-size: 24px;
+                font-weight: 700;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-bottom: 8px;
+        }
+
+        .success-eyebrow {
+                font-family: 'Inter', sans-serif;
+                font-size: 12px;
+                font-weight: 600;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                color: #888888;
+        }
+
+        .success-amount {
+                font-family: 'DM Sans', sans-serif;
+                font-weight: 800;
+                font-size: 44px;
+                letter-spacing: -1.5px;
+                color: #111111;
+                line-height: 1.1;
+                margin: 4px 0 0;
+        }
+
+        .success-body {
+                font-family: 'Inter', sans-serif;
+                font-size: 15px;
+                color: #555555;
+                margin: 0;
+        }
+
+        .success-actions {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                width: 100%;
+                margin-top: 16px;
+        }
+
+        .btn-primary {
+                width: 100%;
+                padding: 14px 24px;
+                border-radius: 12px;
+                background: #f1ccff;
+                color: #3b0764;
+                font-family: 'DM Sans', sans-serif;
+                font-weight: 700;
+                font-size: 15px;
+                border: none;
+                cursor: pointer;
+                transition: opacity 0.15s;
+        }
+
+        .btn-primary:hover { opacity: 0.88; }
+
+        .btn-outline {
+                width: 100%;
+                padding: 14px 24px;
+                border-radius: 12px;
+                background: transparent;
+                color: #333333;
+                font-family: 'DM Sans', sans-serif;
+                font-weight: 600;
+                font-size: 15px;
+                border: 1.5px solid #d6d6d6;
+                cursor: pointer;
+                transition: border-color 0.15s, color 0.15s;
+        }
+
+        .btn-outline:hover {
+                border-color: #aaaaaa;
+                color: #111111;
+        }
 
         /* ---- IMPACT HERO CARD ---- */
         .impact-card-wrap {
