@@ -1,1588 +1,254 @@
 <script lang="ts">
-        import { fade, fly } from 'svelte/transition';
-        import { transactions, lostAmount, formatNaira } from '$lib/data/transactions';
+	import { fade, fly } from 'svelte/transition';
+	import { type Transaction } from '$lib/data/transactions';
+	import { insights, smsTemplates } from '$lib/data/mockData';
+	import favicon        from '$lib/assets/favicon.png';
+	import LandingView    from '$lib/components/LandingView.svelte';
+	import ConnectView    from '$lib/components/ConnectView.svelte';
+	import ScanningView   from '$lib/components/ScanningView.svelte';
+	import ResultsView    from '$lib/components/ResultsView.svelte';
+	import RecoveringView from '$lib/components/RecoveringView.svelte';
+	import RecoveredView  from '$lib/components/RecoveredView.svelte';
+	import MessageModal   from '$lib/components/MessageModal.svelte';
 
-        type View = 'landing' | 'scanning' | 'results' | 'recovering' | 'recovered';
+	type View = 'landing' | 'connect' | 'scanning' | 'results' | 'recovering' | 'recovered';
 
-        const insights = [
-                { label: 'Insight', text: 'Customers who fail once are 2× more likely to complete payment within 6 hours.' },
-                { label: 'Data point', text: 'SMS reminders sent within 30 minutes recover 3× more revenue than those sent the next day.' },
-                { label: 'Insight', text: '67% of abandoned checkouts are recoverable — the customer wanted to pay, something just went wrong.' },
-                { label: 'Benchmark', text: 'The average merchant using LeakFix recovers ₦180,000 in their first 7 days.' },
-                { label: 'Pattern', text: 'Payment failures spike on Fridays. Most customers retry by Sunday if sent a single reminder.' },
-                { label: 'Data point', text: 'A well-timed payment reminder has a 34% open rate — higher than most marketing emails.' },
-                { label: 'Insight', text: 'Card declines are often temporary. 1 in 3 customers retries successfully with the same card within 48 hours.' },
-                { label: 'Benchmark', text: 'Merchants who follow up within 1 hour recover 58% of failed transactions on average.' },
-        ];
+	function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
+	function pickN<T>(arr: T[], n: number): T[] {
+		return [...arr].sort(() => Math.random() - 0.5).slice(0, n);
+	}
 
-        const smsTemplates = [
-                { from: 'LeakFix · SMS', lines: ['Hi, your payment didn\'t go through.', 'Complete it here: pay.link/r8x2k'], time: 'Delivered · just now' },
-                { from: 'LeakFix · SMS', lines: ['Quick reminder — your order is waiting.', 'Retry your payment: pay.link/m3p9q'], time: 'Delivered · just now' },
-                { from: 'LeakFix · Email', lines: ['We noticed your payment failed. No worries —', 'your spot is still reserved: pay.link/v7j1n'], time: 'Delivered · just now' },
-                { from: 'LeakFix · SMS', lines: ['Hey! Your payment needs a moment of attention.', 'It only takes a second: pay.link/t5w4r'], time: 'Delivered · just now' },
-                { from: 'LeakFix · Email', lines: ['Your payment didn\'t complete, but we saved your cart.', 'Finish checkout here: pay.link/k2d8s'], time: 'Delivered · just now' },
-                { from: 'LeakFix · SMS', lines: ['Still thinking it over? Your payment link is active.', 'Complete when ready: pay.link/b6f0y'], time: 'Delivered · just now' },
-        ];
+	// ── State ────────────────────────────────────────────────────────────────────
+	let view          = $state<View>('landing');
+	let scanProgress  = $state(0);
+	let recoverProgress = $state(0);
+	let showModal     = $state(false);
+	let activeInsight = $state(insights[0]);
+	let activeMessages = $state(smsTemplates.slice(0, 3));
+	let activeDataset = $state<Transaction[]>([]);
 
-        function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
-        function pickN<T>(arr: T[], n: number): T[] {
-                const shuffled = [...arr].sort(() => Math.random() - 0.5);
-                return shuffled.slice(0, n);
-        }
+	const lostAmount = $derived(
+		activeDataset
+			.filter(t => t.status === 'failed' || t.status === 'abandoned')
+			.reduce((s, t) => s + t.amount, 0)
+	);
 
-        let view = $state<View>('landing');
-        let activeFilter = $state<'all' | 'failed' | 'abandoned' | 'success'>('all');
-        let scanProgress = $state(0);
-        let recoverProgress = $state(0);
-        let showModal = $state(false);
-        let activeInsight = $state(insights[0]);
-        let activeMessages = $state(smsTemplates.slice(0, 3));
+	// ── Flow handlers ─────────────────────────────────────────────────────────
+	function onConnect(dataset: Transaction[]) {
+		activeDataset = dataset;
+		activeInsight = pick(insights);
+		view = 'scanning';
+		scanProgress = 0;
+		const steps = [10, 30, 55, 72, 88, 100];
+		steps.forEach((target, i) => {
+			setTimeout(() => {
+				scanProgress = target;
+				if (i === steps.length - 1) setTimeout(() => { view = 'results'; }, 300);
+			}, i * 280 + 100);
+		});
+	}
 
-        function startScan() {
-                view = 'scanning';
-                scanProgress = 0;
-                activeInsight = pick(insights);
-                const steps = [10, 30, 55, 72, 88, 100];
-                steps.forEach((target, i) => {
-                        setTimeout(() => {
-                                scanProgress = target;
-                                if (i === steps.length - 1) {
-                                        setTimeout(() => { view = 'results'; }, 300);
-                                }
-                        }, i * 280 + 100);
-                });
-        }
+	function onRecover() {
+		view = 'recovering';
+		recoverProgress = 0;
+		const steps = [15, 40, 65, 85, 100];
+		steps.forEach((target, i) => {
+			setTimeout(() => {
+				recoverProgress = target;
+				if (i === steps.length - 1) setTimeout(() => { view = 'recovered'; }, 400);
+			}, i * 300 + 120);
+		});
+	}
 
-        function startRecovery() {
-                view = 'recovering';
-                recoverProgress = 0;
-                const steps = [15, 40, 65, 85, 100];
-                steps.forEach((target, i) => {
-                        setTimeout(() => {
-                                recoverProgress = target;
-                                if (i === steps.length - 1) {
-                                        setTimeout(() => { view = 'recovered'; }, 400);
-                                }
-                        }, i * 300 + 120);
-                });
-        }
-
-        function goHome() {
-                view = 'landing';
-                activeFilter = 'all';
-                scanProgress = 0;
-                recoverProgress = 0;
-        }
-
-        const filtered = $derived(
-                activeFilter === 'all'
-                        ? transactions
-                        : transactions.filter(t => t.status === activeFilter)
-        );
-
-        const statusCounts = $derived({
-                all:       transactions.length,
-                failed:    transactions.filter(t => t.status === 'failed').length,
-                abandoned: transactions.filter(t => t.status === 'abandoned').length,
-                success:   transactions.filter(t => t.status === 'success').length,
-        });
-
-        const lostFiltered = $derived(
-                filtered
-                        .filter(t => t.status === 'failed' || t.status === 'abandoned')
-                        .reduce((s, t) => s + t.amount, 0)
-        );
+	function goHome() {
+		view = 'landing';
+		scanProgress = 0;
+		recoverProgress = 0;
+		activeDataset = [];
+	}
 </script>
 
-<!-- Sticky navbar always visible -->
+<svelte:head>
+	<title>Recoverly — Recover Failed Paystack Payments Automatically</title>
+	<meta name="description" content="Recoverly helps Paystack merchants automatically recover failed charges and abandoned checkouts. Scan your transactions in 10 seconds and start recovering lost revenue today." />
+	<meta name="keywords" content="Paystack, payment recovery, failed payments, abandoned checkout, Nigeria fintech, revenue recovery, Paystack merchants" />
+	<meta name="robots" content="index, follow" />
+	<meta name="author" content="Recoverly" />
+	<link rel="canonical" href="https://recoverly.app/" />
+
+	<!-- Open Graph -->
+	<meta property="og:type"        content="website" />
+	<meta property="og:url"         content="https://recoverly.app/" />
+	<meta property="og:title"       content="Recoverly — Recover Failed Paystack Payments" />
+	<meta property="og:description" content="Stop losing revenue to failed charges and abandoned checkouts. Recoverly scans your Paystack account and automatically sends recovery reminders." />
+	<meta property="og:image"       content="https://recoverly.app/og-image.png" />
+	<meta property="og:site_name"   content="Recoverly" />
+	<meta property="og:locale"      content="en_NG" />
+
+	<!-- Twitter Card -->
+	<meta name="twitter:card"        content="summary_large_image" />
+	<meta name="twitter:title"       content="Recoverly — Recover Failed Paystack Payments" />
+	<meta name="twitter:description" content="Stop losing revenue to failed charges and abandoned checkouts. Recoverly scans your Paystack account and automatically sends recovery reminders." />
+	<meta name="twitter:image"       content="https://recoverly.app/og-image.png" />
+
+	<!-- Structured data -->
+	{@html `<script type="application/ld+json">${JSON.stringify({
+		"@context": "https://schema.org",
+		"@type": "SoftwareApplication",
+		"name": "Recoverly",
+		"applicationCategory": "FinanceApplication",
+		"description": "Automatically recover failed Paystack payments and abandoned checkouts for Nigerian merchants.",
+		"operatingSystem": "Web",
+		"offers": { "@type": "Offer", "price": "0", "priceCurrency": "NGN" },
+		"url": "https://recoverly.app"
+	})}<\/script>`}
+</svelte:head>
+
+<!-- Navbar -->
 <header class="navbar">
-        <div class="navbar-inner">
-                <button class="nav-logo" onclick={() => { view = 'landing'; activeFilter = 'all'; }}>LeakFix</button>
-                <div class="nav-right">
-                        {#if view === 'results' || view === 'recovered'}
-                                <button class="btn-back" onclick={goHome} transition:fade={{ duration: 150 }}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
-                                        Back
-                                </button>
-                        {/if}
-                        <button class="btn-demo">Demo</button>
-                </div>
-        </div>
+	<div class="navbar-inner">
+		<button class="nav-logo" onclick={goHome}>
+			<img src={favicon} alt="Recoverly logo" class="nav-logo-img" />
+			Recoverly
+		</button>
+		<div class="nav-right">
+			{#if view === 'connect' || view === 'results' || view === 'recovered'}
+				<button class="btn-back" onclick={goHome} transition:fade={{ duration: 150 }}>
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+					Back
+				</button>
+			{/if}
+			<button class="btn-demo" onclick={() => view = 'connect'}>Try Demo</button>
+		</div>
+	</div>
 </header>
 
 <div class="page">
-        <div class="container">
+	<div class="container">
 
-                <!-- LANDING VIEW -->
-                {#if view === 'landing'}
-                        <div transition:fade={{ duration: 200 }}>
+		{#if view === 'landing'}
+			<div transition:fade={{ duration: 200 }}>
+				<LandingView onScan={() => view = 'connect'} />
+			</div>
 
-                                <section class="hero">
-                                        <div class="hero-badge">For Paystack merchants</div>
-                                        <h1 class="hero-headline">Your payments<br>are leaking.</h1>
-                                        <p class="hero-sub">Failed charges and abandoned checkouts drain 15–20% of revenue — silently, every day.</p>
-                                        <div class="hero-actions">
-                                                <button class="btn-primary" onclick={startScan}>
-                                                        Scan for leaks
-                                                </button>
-                                                <span class="hero-hint">Free · No card required · Takes 10 seconds</span>
-                                        </div>
-                                </section>
+		{:else if view === 'connect'}
+			<div transition:fly={{ y: 20, duration: 260, opacity: 0 }}>
+				<ConnectView {onConnect} />
+			</div>
 
-                                <section class="stats-row">
-                                        <div class="stat-card">
-                                                <span class="stat-value">₦2.4B</span>
-                                                <span class="stat-label">Recovered for merchants</span>
-                                        </div>
-                                        <div class="stat-card">
-                                                <span class="stat-value">18%</span>
-                                                <span class="stat-label">Average revenue recovered</span>
-                                        </div>
-                                        <div class="stat-card">
-                                                <span class="stat-value">&lt; 1hr</span>
-                                                <span class="stat-label">Typical time to first recovery</span>
-                                        </div>
-                                </section>
+		{:else if view === 'scanning'}
+			<div transition:fade={{ duration: 180 }}>
+				<ScanningView progress={scanProgress} />
+			</div>
 
-                                <section class="features">
-                                        <h2 class="section-title">Where your money goes missing</h2>
-                                        <div class="feature-grid">
-                                                <div class="card">
-                                                        <div class="card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
-                                                        <h3 class="card-title">Failed charges</h3>
-                                                        <p class="card-body">Insufficient funds, expired cards, and network drops fail silently — with no retry logic in place.</p>
-                                                </div>
-                                                <div class="card">
-                                                        <div class="card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg></div>
-                                                        <h3 class="card-title">Abandoned checkouts</h3>
-                                                        <p class="card-body">Customers drop off mid-payment. No follow-up, no recovery. That's revenue left on the table.</p>
-                                                </div>
-                                                <div class="card">
-                                                        <div class="card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></div>
-                                                        <h3 class="card-title">Subscription churn</h3>
-                                                        <p class="card-body">Recurring charges fail quietly. Subscribers lose access before they even know there was an issue.</p>
-                                                </div>
-                                        </div>
-                                </section>
+		{:else if view === 'results'}
+			<div transition:fly={{ y: 24, duration: 320, opacity: 0 }}>
+				<ResultsView
+					dataset={activeDataset}
+					{lostAmount}
+					insight={activeInsight}
+					{onRecover}
+				/>
+			</div>
 
-                                <section class="cta-strip">
-                                        <div class="cta-inner">
-                                                <h2 class="cta-title">See exactly what you're losing</h2>
-                                                <p class="cta-body">Connect your Paystack account in 30 seconds. We'll surface every leak.</p>
-                                                <button class="btn-primary" onclick={startScan}>Scan for leaks</button>
-                                        </div>
-                                </section>
+		{:else if view === 'recovering'}
+			<div transition:fade={{ duration: 180 }}>
+				<RecoveringView progress={recoverProgress} />
+			</div>
 
-                                <footer class="footer">
-                                        <span>© 2026 LeakFix. All rights reserved.</span>
-                                        <div class="footer-links">
-                                                <a href="/">Privacy</a>
-                                                <a href="/">Terms</a>
-                                                <a href="/">Contact</a>
-                                        </div>
-                                </footer>
+		{:else if view === 'recovered'}
+			<div transition:fly={{ y: 20, duration: 300, opacity: 0 }}>
+				<RecoveredView
+					{lostAmount}
+					onViewMessages={() => { activeMessages = pickN(smsTemplates, 3); showModal = true; }}
+					onBack={goHome}
+				/>
+			</div>
+		{/if}
 
-                        </div>
-
-                <!-- SCANNING VIEW -->
-                {:else if view === 'scanning'}
-                        <div class="scanning-view" transition:fade={{ duration: 180 }}>
-                                <div class="scanning-card">
-                                        <div class="scan-icon-wrap">
-                                                <div class="scan-pulse"></div>
-                                                <div class="scan-icon">⟳</div>
-                                        </div>
-
-                                        <div class="scan-text">
-                                                <h2 class="scan-title">Scanning your transactions</h2>
-                                                <p class="scan-sub">Connecting to Paystack and analysing payment data</p>
-                                        </div>
-
-                                        <div class="scan-progress-block">
-                                                <div class="scan-progress-row">
-                                                        <span class="progress-label">{scanProgress}% complete</span>
-                                                </div>
-                                                <div class="progress-track">
-                                                        <div class="progress-bar" style="width: {scanProgress}%"></div>
-                                                </div>
-                                        </div>
-
-                                        <div class="scan-steps">
-                                                <div class="scan-step" class:step-done={scanProgress >= 30}>
-                                                        {#if scanProgress >= 30}
-                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-                                                        {:else}
-                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>
-                                                        {/if}
-                                                        <span>Fetching transactions</span>
-                                                </div>
-                                                <div class="scan-step" class:step-done={scanProgress >= 55}>
-                                                        {#if scanProgress >= 55}
-                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-                                                        {:else}
-                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>
-                                                        {/if}
-                                                        <span>Detecting failures</span>
-                                                </div>
-                                                <div class="scan-step" class:step-done={scanProgress >= 88}>
-                                                        {#if scanProgress >= 88}
-                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-                                                        {:else}
-                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>
-                                                        {/if}
-                                                        <span>Computing losses</span>
-                                                </div>
-                                        </div>
-                                </div>
-                        </div>
-
-                <!-- RESULTS VIEW -->
-                {:else if view === 'results'}
-                        <div transition:fly={{ y: 24, duration: 320, opacity: 0 }}>
-
-                                <!-- Hero impact card -->
-                                <div class="impact-card-wrap">
-                                        <div class="impact-card">
-                                                <p class="impact-eyebrow">Your scan is complete</p>
-                                                <h2 class="impact-amount">{formatNaira(lostAmount)}<span class="impact-lost"> LOST</span></h2>
-                                                <p class="impact-body">This was money you already earned… but never received.</p>
-                                                <button class="btn-recover" onclick={startRecovery}>
-                                                        Recover this money
-                                                </button>
-                                        </div>
-                                </div>
-
-                                <!-- Insight card -->
-                                <div class="insight-wrap">
-                                        <div class="insight-card">
-                                                <span class="insight-label">
-                                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
-                                                        {activeInsight.label}
-                                                </span>
-                                                <p class="insight-text">{activeInsight.text}</p>
-                                        </div>
-                                </div>
-
-                                <!-- Failed transactions list -->
-                                <section class="failed-section">
-                                        <h3 class="failed-title">Failed transactions</h3>
-                                        <div class="failed-list">
-                                                {#each transactions.filter(t => t.status === 'failed') as txn (txn.id)}
-                                                        <div class="failed-item">
-                                                                <div class="failed-left">
-                                                                        <span class="failed-email">{txn.customer_email}</span>
-                                                                        <span class="failed-amount">{formatNaira(txn.amount)}</span>
-                                                                </div>
-                                                                <span class="badge badge-{txn.status}">{txn.status}</span>
-                                                        </div>
-                                                {/each}
-                                        </div>
-                                </section>
-
-                                <!-- Summary strip -->
-                                <div class="results-summary">
-                                        <div class="summary-card alert">
-                                                <span class="summary-label">Total lost</span>
-                                                <span class="summary-value">{formatNaira(lostAmount)}</span>
-                                        </div>
-                                        <div class="summary-card">
-                                                <span class="summary-label">Failed</span>
-                                                <span class="summary-value">{statusCounts.failed} txns</span>
-                                        </div>
-                                        <div class="summary-card">
-                                                <span class="summary-label">Abandoned</span>
-                                                <span class="summary-value">{statusCounts.abandoned} txns</span>
-                                        </div>
-                                        <div class="summary-card success">
-                                                <span class="summary-label">Successful</span>
-                                                <span class="summary-value">{statusCounts.success} txns</span>
-                                        </div>
-                                </div>
-
-                                <!-- Table -->
-                                <section class="txn-section">
-                                        <div class="txn-header">
-                                                <div>
-                                                        <h2 class="section-title" style="margin-bottom:4px">Scan results</h2>
-                                                        <p class="txn-subtitle">
-                                                                {filtered.length} of {transactions.length} transactions
-                                                                {#if activeFilter !== 'all'}· filtered by <strong>{activeFilter}</strong>{/if}
-                                                        </p>
-                                                </div>
-                                                {#if lostFiltered > 0}
-                                                        <div class="lost-badge">
-                                                                <span class="lost-label">Showing lost</span>
-                                                                <span class="lost-amount">{formatNaira(lostFiltered)}</span>
-                                                        </div>
-                                                {/if}
-                                        </div>
-
-                                        <div class="txn-filters">
-                                                {#each (['all', 'failed', 'abandoned', 'success'] as const) as f}
-                                                        <button
-                                                                class="filter-btn"
-                                                                class:active={activeFilter === f}
-                                                                onclick={() => activeFilter = f}
-                                                        >
-                                                                {f.charAt(0).toUpperCase() + f.slice(1)}
-                                                                <span class="filter-count">{statusCounts[f]}</span>
-                                                        </button>
-                                                {/each}
-                                        </div>
-
-                                        <div class="txn-card">
-                                                <table class="txn-table">
-                                                        <thead>
-                                                                <tr>
-                                                                        <th>ID</th>
-                                                                        <th>Customer</th>
-                                                                        <th>Amount</th>
-                                                                        <th>Status</th>
-                                                                </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                                {#each filtered as txn (txn.id)}
-                                                                        <tr transition:fade={{ duration: 120 }}>
-                                                                                <td class="txn-id">{txn.id}</td>
-                                                                                <td class="txn-email">{txn.customer_email}</td>
-                                                                                <td class="txn-amount">{formatNaira(txn.amount)}</td>
-                                                                                <td>
-                                                                                        <span class="status-pill status-{txn.status}">
-                                                                                                {txn.status}
-                                                                                        </span>
-                                                                                </td>
-                                                                        </tr>
-                                                                {/each}
-                                                        </tbody>
-                                                </table>
-                                        </div>
-                                </section>
-
-                                <footer class="footer">
-                                        <span>© 2026 LeakFix. All rights reserved.</span>
-                                        <div class="footer-links">
-                                                <a href="/">Privacy</a>
-                                                <a href="/">Terms</a>
-                                                <a href="/">Contact</a>
-                                        </div>
-                                </footer>
-
-                        </div>
-
-                <!-- RECOVERING VIEW -->
-                {:else if view === 'recovering'}
-                        <div class="recovering-view" transition:fade={{ duration: 180 }}>
-                                <div class="recovering-inner">
-                                        <div class="recover-icon-wrap">
-                                                <div class="recover-pulse"></div>
-                                                <div class="recover-icon">↑</div>
-                                        </div>
-                                        <h2 class="recover-title">Recovering your money…</h2>
-                                        <p class="recover-sub">Sending reminders · Retrying payments</p>
-                                        <div class="progress-track">
-                                                <div class="progress-bar recover-bar" style="width: {recoverProgress}%"></div>
-                                        </div>
-                                        <span class="progress-label">{recoverProgress}%</span>
-                                </div>
-                        </div>
-
-                <!-- RECOVERED VIEW -->
-                {:else if view === 'recovered'}
-                        <div class="recovered-view" transition:fly={{ y: 20, duration: 300, opacity: 0 }}>
-                                <div class="success-card-wrap">
-                                        <div class="success-card">
-                                                <div class="success-icon">✓</div>
-                                                <p class="success-eyebrow">Recovery complete</p>
-                                                <h2 class="success-amount">₦32,000 recovered</h2>
-                                                <p class="success-body">Reminders sent to 6 customers</p>
-                                                <div class="success-actions">
-                                                        <button class="btn-primary" onclick={() => { activeMessages = pickN(smsTemplates, 3); showModal = true; }}>View messages</button>
-                                                        <button class="btn-outline" onclick={goHome}>Back</button>
-                                                </div>
-                                        </div>
-                                </div>
-                        </div>
-
-                {/if}
-
-        </div>
+	</div>
 </div>
 
 {#if showModal}
-        <div class="modal-backdrop" transition:fade={{ duration: 150 }} onclick={() => showModal = false} onkeydown={(e) => e.key === 'Escape' && (showModal = false)} role="presentation">
-                <div class="modal-card" transition:fly={{ y: 16, duration: 220, opacity: 0 }} onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Recovery messages" tabindex="-1">
-
-                        <div class="modal-header">
-                                <div>
-                                        <span class="modal-label">Recovery messages</span>
-                                        <p class="modal-sub">Sent to {activeMessages.length} customers</p>
-                                </div>
-                                <button class="modal-close" onclick={() => showModal = false} aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
-                        </div>
-
-                        <div class="sms-list">
-                                {#each activeMessages as msg, i}
-                                        <div class="sms-wrap" style="animation-delay: {i * 60}ms">
-                                                <div class="sms-meta">{msg.from}</div>
-                                                <div class="sms-bubble">
-                                                        {#each msg.lines as line, j}
-                                                                <p>{#if j === msg.lines.length - 1}{@html line.replace(/(pay\.link\/\w+)/, '<span class="sms-link">$1</span>')}{:else}{line}{/if}</p>
-                                                        {/each}
-                                                </div>
-                                                <div class="sms-time">{msg.time}</div>
-                                        </div>
-                                {/each}
-                        </div>
-
-                </div>
-        </div>
+	<MessageModal messages={activeMessages} onClose={() => showModal = false} />
 {/if}
 
 <style>
-        /* Navbar */
-        .navbar {
-                position: sticky;
-                top: 0;
-                z-index: 100;
-                background: #f5f2f0;
-                box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05);
-        }
-
-        .navbar-inner {
-                max-width: 1200px;
-                margin: 0 auto;
-                padding: 0 24px;
-                height: 64px;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-        }
-
-        .nav-logo {
-                font-family: 'DM Sans', sans-serif;
-                font-size: 20px;
-                font-weight: 700;
-                color: #000000;
-                letter-spacing: -0.3px;
-                background: none;
-                border: none;
-                cursor: pointer;
-                padding: 0;
-                transition: opacity 0.15s;
-        }
-
-        .nav-logo:hover { opacity: 0.6; }
-
-        .nav-right {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-        }
-
-        .btn-back {
-                font-family: 'Inter', sans-serif;
-                font-size: 13px;
-                font-weight: 500;
-                color: #333333;
-                background: none;
-                border: 1px solid #d6d6d6;
-                border-radius: 10px;
-                padding: 8px 16px;
-                cursor: pointer;
-                transition: background 0.12s, border-color 0.12s, color 0.12s;
-        }
-
-        .btn-back:hover { background: #ffffff; border-color: #bbbbbb; color: #000000; }
-
-        .btn-demo {
-                background: #000000;
-                color: #ffffff;
-                font-family: 'DM Sans', sans-serif;
-                font-size: 13px;
-                font-weight: 600;
-                border: none;
-                border-radius: 10px;
-                padding: 9px 20px;
-                cursor: pointer;
-                letter-spacing: -0.1px;
-                transition: background 0.15s, transform 0.12s;
-        }
-
-        .btn-demo:hover { background: #222222; transform: translateY(-1px); }
-        .btn-demo:active { transform: translateY(0); }
-
-        /* Page shell */
-        .page {
-                background: #f5f2f0;
-                min-height: calc(100vh - 64px);
-                padding: 0 24px;
-        }
-
-        .container {
-                max-width: 1200px;
-                margin: 0 auto;
-        }
-
-        /* Hero */
-        .hero {
-                padding: 96px 0 30px;
-                text-align: center;
-                max-width: 720px;
-                margin: 0 auto;
-        }
-
-        .hero-badge {
-                display: inline-block;
-                font-family: 'Inter', sans-serif;
-                font-size: 12px;
-                font-weight: 500;
-                color: #333333;
-                letter-spacing: 0.08em;
-                text-transform: uppercase;
-                background: #ffffff;
-                border: 1px solid #d6d6d6;
-                border-radius: 100px;
-                padding: 6px 16px;
-                margin-bottom: 28px;
-        }
-
-        .hero-headline {
-                font-family: 'DM Sans', sans-serif;
-                font-size: clamp(52px, 7vw, 88px);
-                font-weight: 700;
-                color: #000000;
-                line-height: 1.05;
-                letter-spacing: -2px;
-                margin-bottom: 20px;
-        }
-
-        .hero-sub {
-                font-family: 'Inter', sans-serif;
-                font-size: 18px;
-                color: #333333;
-                line-height: 1.6;
-                margin-bottom: 40px;
-        }
-
-        .hero-actions {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 12px;
-        }
-
-        .hero-hint {
-                font-family: 'Inter', sans-serif;
-                font-size: 13px;
-                color: #888888;
-        }
-
-        /* Buttons */
-        .btn-primary {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                background: #f1ccff;
-                color: #000000;
-                font-family: 'DM Sans', sans-serif;
-                font-size: 15px;
-                font-weight: 700;
-                border: none;
-                border-radius: 12px;
-                padding: 16px 36px;
-                cursor: pointer;
-                transition: background 0.15s, transform 0.12s;
-                letter-spacing: -0.1px;
-        }
-
-        .btn-primary:hover { background: #e8b8ff; transform: translateY(-1px); }
-        .btn-primary:active { transform: translateY(0); }
-        .success-actions .btn-primary { width: 100%; padding: 14px 24px; }
-
-        /* Stats */
-        .stats-row {
-                display: grid;
-                grid-template-columns: repeat(3, 1fr);
-                gap: 16px;
-                margin-top: 32px;
-        }
-
-        .stat-card {
-                background: #ffffff;
-                border-radius: 24px;
-                padding: 40px;
-                box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.04), 0px 0px 0px 1px rgba(0,0,0,0.03);
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-                transition: box-shadow 0.18s, transform 0.15s;
-        }
-
-        .stat-card:hover {
-                box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.08), 0px 0px 0px 1px rgba(0,0,0,0.04);
-                transform: translateY(-2px);
-        }
-
-        .stat-value {
-                font-family: 'DM Sans', sans-serif;
-                font-size: 42px;
-                font-weight: 700;
-                color: #000000;
-                letter-spacing: -1.5px;
-                line-height: 1;
-        }
-
-        .stat-label {
-                font-family: 'Inter', sans-serif;
-                font-size: 14px;
-                color: #333333;
-                line-height: 1.5;
-        }
-
-        /* Features */
-        .features { margin-top: 32px; }
-
-        .section-title {
-                font-family: 'DM Sans', sans-serif;
-                font-size: 32px;
-                font-weight: 700;
-                color: #000000;
-                letter-spacing: -0.8px;
-                margin-bottom: 16px;
-        }
-
-        .feature-grid {
-                display: grid;
-                grid-template-columns: repeat(3, 1fr);
-                gap: 16px;
-        }
-
-        .card {
-                background: #ffffff;
-                border-radius: 24px;
-                padding: 40px;
-                box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.04), 0px 0px 0px 1px rgba(0,0,0,0.03);
-                display: flex;
-                flex-direction: column;
-                gap: 16px;
-                transition: box-shadow 0.18s, transform 0.15s;
-        }
-
-        .card:hover {
-                box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.08), 0px 0px 0px 1px rgba(0,0,0,0.04);
-                transform: translateY(-2px);
-        }
-
-        .card-icon {
-                font-size: 24px;
-                color: #000000;
-                width: 44px;
-                height: 44px;
-                background: #f5f2f0;
-                border-radius: 12px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-        }
-
-        .card-title {
-                font-family: 'DM Sans', sans-serif;
-                font-size: 20px;
-                font-weight: 600;
-                color: #000000;
-                letter-spacing: -0.3px;
-        }
-
-        .card-body {
-                font-family: 'Inter', sans-serif;
-                font-size: 14px;
-                color: #333333;
-                line-height: 1.65;
-        }
-
-        /* CTA */
-        .cta-strip {
-                margin-top: 32px;
-                background: #ffffff;
-                border-radius: 24px;
-                box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.04), 0px 0px 0px 1px rgba(0,0,0,0.03);
-                padding: 40px;
-        }
-
-        .cta-inner {
-                max-width: 520px;
-                display: flex;
-                flex-direction: column;
-                gap: 16px;
-        }
-
-        .cta-title {
-                font-family: 'DM Sans', sans-serif;
-                font-size: 28px;
-                font-weight: 700;
-                color: #000000;
-                letter-spacing: -0.6px;
-        }
-
-        .cta-body {
-                font-family: 'Inter', sans-serif;
-                font-size: 15px;
-                color: #333333;
-                line-height: 1.6;
-        }
-
-        /* ---- SCANNING SCREEN ---- */
-        .scanning-view {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                min-height: calc(100vh - 64px);
-                padding: 40px 24px;
-        }
-
-        .scanning-card {
-                background: #ffffff;
-                border-radius: 24px;
-                padding: 48px 40px;
-                box-shadow: 0px 2px 8px rgba(0,0,0,0.04), 0px 0px 0px 1px rgba(0,0,0,0.03);
-                max-width: 440px;
-                width: 100%;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 32px;
-        }
-
-        .scan-icon-wrap {
-                position: relative;
-                width: 72px;
-                height: 72px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                flex-shrink: 0;
-        }
-
-        .scan-pulse {
-                position: absolute;
-                inset: -8px;
-                border-radius: 50%;
-                background: #f1ccff;
-                opacity: 0.4;
-                animation: pulse 1.4s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-                0%, 100% { transform: scale(1); opacity: 0.4; }
-                50%       { transform: scale(1.18); opacity: 0.15; }
-        }
-
-        .scan-icon {
-                width: 72px;
-                height: 72px;
-                background: #000000;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 28px;
-                color: #ffffff;
-                animation: spin 1.6s linear infinite;
-                position: relative;
-                z-index: 1;
-        }
-
-        @keyframes spin {
-                to { transform: rotate(360deg); }
-        }
-
-        .scan-text {
-                text-align: center;
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-        }
-
-        .scan-title {
-                font-family: 'DM Sans', sans-serif;
-                font-size: 22px;
-                font-weight: 700;
-                color: #000000;
-                letter-spacing: -0.4px;
-                margin: 0;
-        }
-
-        .scan-sub {
-                font-family: 'Inter', sans-serif;
-                font-size: 14px;
-                color: #888888;
-                line-height: 1.5;
-                margin: 0;
-        }
-
-        .scan-progress-block {
-                width: 100%;
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-        }
-
-        .scan-progress-row {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-        }
-
-        .progress-track {
-                background: #e8e4e0;
-                border-radius: 100px;
-                height: 5px;
-                overflow: hidden;
-                width: 100%;
-        }
-
-        .progress-bar {
-                height: 100%;
-                background: #000000;
-                border-radius: 100px;
-                transition: width 0.25s ease;
-        }
-
-        .progress-label {
-                font-family: 'Inter', sans-serif;
-                font-size: 12px;
-                font-weight: 500;
-                color: #888888;
-        }
-
-        .scan-steps {
-                width: 100%;
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-        }
-
-        .scan-step {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                font-family: 'Inter', sans-serif;
-                font-size: 13px;
-                color: #cccccc;
-                transition: color 0.3s;
-        }
-
-        .scan-step.step-done { color: #000000; }
-
-        .scan-step :global(svg) {
-                flex-shrink: 0;
-                transition: opacity 0.2s;
-        }
-
-        /* ---- RECOVERING VIEW ---- */
-        .recovering-view {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                min-height: calc(100vh - 64px);
-                padding: 40px 24px;
-        }
-
-        .recovering-inner {
-                text-align: center;
-                max-width: 400px;
-                width: 100%;
-        }
-
-        .recover-icon-wrap {
-                position: relative;
-                width: 64px;
-                height: 64px;
-                margin: 0 auto 28px;
-        }
-
-        .recover-pulse {
-                position: absolute;
-                inset: 0;
-                border-radius: 50%;
-                background: #f1ccff;
-                animation: pulse 1.4s ease-in-out infinite;
-        }
-
-        .recover-icon {
-                position: relative;
-                z-index: 1;
-                width: 64px;
-                height: 64px;
-                border-radius: 50%;
-                background: #000000;
-                color: #f1ccff;
-                font-size: 28px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-weight: 700;
-        }
-
-        .recover-title {
-                font-family: 'DM Sans', sans-serif;
-                font-weight: 700;
-                font-size: 26px;
-                color: #000000;
-                letter-spacing: -0.5px;
-                margin-bottom: 8px;
-        }
-
-        .recover-sub {
-                font-family: 'Inter', sans-serif;
-                font-size: 14px;
-                color: #888888;
-                margin-bottom: 28px;
-        }
-
-        .recover-bar {
-                background: #a855f7 !important;
-        }
-
-        /* ---- RECOVERED / SUCCESS VIEW ---- */
-        .recovered-view {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                min-height: calc(100vh - 64px);
-                padding: 40px 24px;
-        }
-
-        .success-card-wrap {
-                display: flex;
-                justify-content: center;
-                width: 100%;
-        }
-
-        .success-card {
-                background: #ffffff;
-                border-radius: 24px;
-                padding: 48px 40px;
-                box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.06);
-                text-align: center;
-                max-width: 480px;
-                width: 100%;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 12px;
-        }
-
-        .success-icon {
-                width: 56px;
-                height: 56px;
-                border-radius: 50%;
-                background: #f1ccff;
-                color: #6b21a8;
-                font-size: 24px;
-                font-weight: 700;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                margin-bottom: 8px;
-        }
-
-        .success-eyebrow {
-                font-family: 'Inter', sans-serif;
-                font-size: 12px;
-                font-weight: 600;
-                letter-spacing: 0.08em;
-                text-transform: uppercase;
-                color: #888888;
-        }
-
-        .success-amount {
-                font-family: 'DM Sans', sans-serif;
-                font-weight: 800;
-                font-size: 44px;
-                letter-spacing: -1.5px;
-                color: #000000;
-                line-height: 1.1;
-                margin: 4px 0 0;
-        }
-
-        .success-body {
-                font-family: 'Inter', sans-serif;
-                font-size: 15px;
-                color: #555555;
-                margin: 0;
-        }
-
-        .success-actions {
-                display: flex;
-                flex-direction: column;
-                gap: 12px;
-                width: 100%;
-                margin-top: 16px;
-        }
-
-        .btn-outline {
-                width: 100%;
-                padding: 14px 24px;
-                border-radius: 12px;
-                background: transparent;
-                color: #333333;
-                font-family: 'DM Sans', sans-serif;
-                font-weight: 600;
-                font-size: 15px;
-                border: 1.5px solid #d6d6d6;
-                cursor: pointer;
-                transition: border-color 0.15s, color 0.15s, background 0.15s;
-        }
-
-        .btn-outline:hover {
-                border-color: #aaaaaa;
-                color: #000000;
-                background: #faf9f8;
-        }
-
-        /* ---- IMPACT HERO CARD ---- */
-        .impact-card-wrap {
-                display: flex;
-                justify-content: center;
-                padding: 40px 0 30px;
-        }
-
-        .impact-card {
-                background: #ffffff;
-                border-radius: 24px;
-                padding: 40px;
-                box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.04), 0px 0px 0px 1px rgba(0,0,0,0.03);
-                text-align: center;
-                max-width: 600px;
-                width: 100%;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 20px;
-        }
-
-        .impact-eyebrow {
-                font-family: 'Inter', sans-serif;
-                font-size: 12px;
-                font-weight: 500;
-                letter-spacing: 0.1em;
-                text-transform: uppercase;
-                color: #888888;
-        }
-
-        .impact-amount {
-                font-family: 'DM Sans', sans-serif;
-                font-size: clamp(48px, 6vw, 62px);
-                font-weight: 800;
-                color: #000000;
-                line-height: 1;
-                letter-spacing: -2px;
-        }
-
-        .impact-lost {
-                font-family: 'DM Sans', sans-serif;
-                font-weight: 800;
-                color: #c62828;
-        }
-
-        .impact-body {
-                font-family: 'Inter', sans-serif;
-                font-size: 17px;
-                color: #333333;
-                line-height: 1.65;
-                max-width: 420px;
-                font-style: italic;
-        }
-
-        .btn-recover {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                background: #f1ccff;
-                color: #000000;
-                font-family: 'Inter', sans-serif;
-                font-size: 15px;
-                font-weight: 600;
-                border: none;
-                border-radius: 12px;
-                padding: 16px 36px;
-                cursor: pointer;
-                transition: background 0.15s, transform 0.1s;
-                letter-spacing: -0.1px;
-                margin-top: 4px;
-        }
-
-        .btn-recover:hover { background: #e8b8ff; transform: translateY(-1px); }
-        .btn-recover:active { transform: translateY(0); }
-
-        /* ---- FAILED TRANSACTIONS ---- */
-        .failed-section {
-                max-width: 600px;
-                margin: 0 auto 30px;
-                width: 100%;
-        }
-
-        .failed-title {
-                font-family: 'DM Sans', sans-serif;
-                font-size: 13px;
-                font-weight: 600;
-                letter-spacing: 0.07em;
-                text-transform: uppercase;
-                color: #888888;
-                margin-bottom: 12px;
-                padding: 0 4px;
-        }
-
-        .failed-list {
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-        }
-
-        .failed-item {
-                background: #ffffff;
-                border-radius: 14px;
-                padding: 16px 20px;
-                box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.04), 0px 0px 0px 1px rgba(0,0,0,0.03);
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 16px;
-                transition: box-shadow 0.15s, transform 0.13s;
-        }
-
-        .failed-item:hover {
-                box-shadow: 0px 6px 20px rgba(0, 0, 0, 0.07), 0px 0px 0px 1px rgba(0,0,0,0.04);
-                transform: translateY(-1px);
-        }
-
-        .failed-left {
-                display: flex;
-                flex-direction: column;
-                gap: 3px;
-                min-width: 0;
-        }
-
-        .failed-email {
-                font-family: 'Inter', sans-serif;
-                font-size: 14px;
-                color: #333333;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-        }
-
-        .failed-amount {
-                font-family: 'DM Sans', sans-serif;
-                font-size: 15px;
-                font-weight: 700;
-                color: #000000;
-                letter-spacing: -0.3px;
-        }
-
-        .badge {
-                display: inline-flex;
-                align-items: center;
-                font-family: 'Inter', sans-serif;
-                font-size: 11px;
-                font-weight: 500;
-                text-transform: capitalize;
-                border-radius: 10px;
-                border: 1px solid #d6d6d6;
-                padding: 4px 10px;
-                white-space: nowrap;
-                flex-shrink: 0;
-        }
-
-        .badge-failed   { color: #c62828; background: #fdecea; border-color: #f5c6c6; }
-        .badge-abandoned { color: #e65100; background: #fff8e1; border-color: #f5e0a6; }
-        .badge-success  { color: #2e7d32; background: #e8f5e9; border-color: #b2dfb4; }
-
-        /* ---- RESULTS SCREEN ---- */
-        .results-summary {
-                display: grid;
-                grid-template-columns: repeat(4, 1fr);
-                gap: 16px;
-                margin-top: 32px;
-                margin-bottom: 32px;
-        }
-
-        .summary-card {
-                background: #ffffff;
-                border-radius: 20px;
-                padding: 28px 24px;
-                box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.04), 0px 0px 0px 1px rgba(0,0,0,0.03);
-                display: flex;
-                flex-direction: column;
-                gap: 6px;
-        }
-
-        .summary-card.alert { border-top: 2px solid #e57373; }
-        .summary-card.success { border-top: 2px solid #66bb6a; }
-
-        .summary-label {
-                font-family: 'Inter', sans-serif;
-                font-size: 11px;
-                font-weight: 500;
-                letter-spacing: 0.07em;
-                text-transform: uppercase;
-                color: #888888;
-        }
-
-        .summary-value {
-                font-family: 'DM Sans', sans-serif;
-                font-size: 24px;
-                font-weight: 700;
-                color: #000000;
-                letter-spacing: -0.5px;
-                line-height: 1;
-        }
-
-        /* Transactions */
-        .txn-section { margin-top: 0; }
-
-        .txn-header {
-                display: flex;
-                align-items: flex-start;
-                justify-content: space-between;
-                gap: 16px;
-                margin-bottom: 16px;
-        }
-
-        .txn-subtitle {
-                font-family: 'Inter', sans-serif;
-                font-size: 14px;
-                color: #888888;
-                margin-top: 4px;
-        }
-
-        .txn-subtitle strong { color: #333333; font-weight: 600; }
-
-        .lost-badge {
-                background: #ffffff;
-                border: 1px solid #e8e4e0;
-                border-radius: 16px;
-                padding: 16px 24px;
-                box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.04), 0px 0px 0px 1px rgba(0,0,0,0.03);
-                display: flex;
-                flex-direction: column;
-                align-items: flex-end;
-                gap: 4px;
-                flex-shrink: 0;
-        }
-
-        .lost-label {
-                font-family: 'Inter', sans-serif;
-                font-size: 11px;
-                font-weight: 500;
-                letter-spacing: 0.08em;
-                text-transform: uppercase;
-                color: #888888;
-        }
-
-        .lost-amount {
-                font-family: 'DM Sans', sans-serif;
-                font-size: 28px;
-                font-weight: 700;
-                color: #000000;
-                letter-spacing: -0.8px;
-                line-height: 1;
-        }
-
-        .txn-filters {
-                display: flex;
-                gap: 8px;
-                margin-bottom: 12px;
-        }
-
-        .filter-btn {
-                display: inline-flex;
-                align-items: center;
-                gap: 6px;
-                font-family: 'Inter', sans-serif;
-                font-size: 13px;
-                font-weight: 500;
-                color: #333333;
-                background: #ffffff;
-                border: 1px solid #d6d6d6;
-                border-radius: 10px;
-                padding: 7px 14px;
-                cursor: pointer;
-                transition: background 0.12s, border-color 0.12s, color 0.12s;
-        }
-
-        .filter-btn:hover { background: #f5f2f0; border-color: #bbbbbb; }
-
-        .filter-btn.active {
-                background: #000000;
-                border-color: #000000;
-                color: #ffffff;
-        }
-
-        .filter-btn.active .filter-count {
-                background: rgba(255, 255, 255, 0.2);
-                color: #ffffff;
-        }
-
-        .filter-count {
-                background: #f5f2f0;
-                color: #333333;
-                font-size: 11px;
-                font-weight: 600;
-                border-radius: 100px;
-                padding: 1px 7px;
-                transition: background 0.12s, color 0.12s;
-        }
-
-        .txn-card {
-                background: #ffffff;
-                border-radius: 24px;
-                box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.04), 0px 0px 0px 1px rgba(0,0,0,0.03);
-                overflow: hidden;
-        }
-
-        .txn-table {
-                width: 100%;
-                border-collapse: collapse;
-        }
-
-        .txn-table thead tr { border-bottom: 1px solid #d6d6d6; }
-
-        .txn-table th {
-                font-family: 'Inter', sans-serif;
-                font-size: 11px;
-                font-weight: 600;
-                letter-spacing: 0.07em;
-                text-transform: uppercase;
-                color: #888888;
-                text-align: left;
-                padding: 16px 24px;
-        }
-
-        .txn-table tbody tr {
-                border-bottom: 1px solid #f0eeed;
-                transition: background 0.1s;
-        }
-
-        .txn-table tbody tr:last-child { border-bottom: none; }
-        .txn-table tbody tr:hover { background: #faf9f8; }
-
-        .txn-table td {
-                padding: 16px 24px;
-                vertical-align: middle;
-        }
-
-        .txn-id {
-                font-family: 'Inter', sans-serif;
-                font-size: 13px;
-                font-weight: 500;
-                color: #888888;
-                letter-spacing: 0.02em;
-        }
-
-        .txn-email {
-                font-family: 'Inter', sans-serif;
-                font-size: 14px;
-                color: #000000;
-        }
-
-        .txn-amount {
-                font-family: 'Inter', sans-serif;
-                font-size: 14px;
-                font-weight: 600;
-                color: #000000;
-                letter-spacing: -0.2px;
-        }
-
-        .status-pill {
-                display: inline-block;
-                font-family: 'Inter', sans-serif;
-                font-size: 12px;
-                font-weight: 500;
-                border-radius: 100px;
-                padding: 4px 12px;
-                text-transform: capitalize;
-        }
-
-        .status-success  { background: #e8f5e9; color: #2e7d32; }
-        .status-failed   { background: #fdecea; color: #c62828; }
-        .status-abandoned { background: #fff8e1; color: #e65100; }
-
-        /* Footer */
-        .footer {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 30px 0 40px;
-                margin-top: 30px;
-                border-top: 1px solid #d6d6d6;
-                font-family: 'Inter', sans-serif;
-                font-size: 13px;
-                color: #888888;
-        }
-
-        .footer-links { display: flex; gap: 24px; }
-
-        .footer-links a {
-                color: #888888;
-                text-decoration: none;
-                transition: color 0.15s;
-        }
-
-        .footer-links a:hover { color: #000000; }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-                .stats-row, .feature-grid, .results-summary {
-                        grid-template-columns: 1fr;
-                }
-                .hero { padding: 64px 0 30px; }
-        }
-
-        /* ---- INSIGHT CARD ---- */
-        .insight-wrap {
-                display: flex;
-                justify-content: center;
-                padding: 0 0 24px;
-        }
-
-        .insight-card {
-                background: #91e0ff;
-                border-radius: 16px;
-                padding: 20px 24px;
-                max-width: 600px;
-                width: 100%;
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-        }
-
-        .insight-label {
-                font-family: 'Inter', sans-serif;
-                font-size: 11px;
-                font-weight: 700;
-                letter-spacing: 0.08em;
-                text-transform: uppercase;
-                color: #0369a1;
-                display: flex;
-                align-items: center;
-                gap: 5px;
-        }
-
-        .insight-text {
-                font-family: 'Inter', sans-serif;
-                font-size: 14px;
-                font-weight: 400;
-                color: #0c2a3a;
-                line-height: 1.6;
-                margin: 0;
-        }
-
-        /* ---- MESSAGE MODAL ---- */
-        .modal-backdrop {
-                position: fixed;
-                inset: 0;
-                background: rgba(0, 0, 0, 0.32);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                z-index: 999;
-                padding: 24px;
-        }
-
-        .modal-card {
-                background: #ffffff;
-                border-radius: 20px;
-                padding: 24px;
-                width: 100%;
-                max-width: 380px;
-                box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
-        }
-
-        .modal-header {
-                display: flex;
-                align-items: flex-start;
-                justify-content: space-between;
-                margin-bottom: 20px;
-        }
-
-        .modal-label {
-                font-family: 'DM Sans', sans-serif;
-                font-size: 15px;
-                font-weight: 700;
-                color: #000000;
-                letter-spacing: -0.2px;
-        }
-
-        .modal-sub {
-                font-family: 'Inter', sans-serif;
-                font-size: 12px;
-                color: #999999;
-                margin: 3px 0 0;
-        }
-
-        .sms-list {
-                display: flex;
-                flex-direction: column;
-                gap: 16px;
-        }
-
-        .modal-close {
-                background: none;
-                border: none;
-                cursor: pointer;
-                font-size: 14px;
-                color: #aaaaaa;
-                padding: 2px 6px;
-                border-radius: 6px;
-                transition: color 0.15s;
-        }
-
-        .modal-close:hover { color: #333333; }
-
-        .sms-wrap {
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-        }
-
-        .sms-meta {
-                font-family: 'Inter', sans-serif;
-                font-size: 11px;
-                font-weight: 600;
-                color: #bbbbbb;
-                letter-spacing: 0.04em;
-        }
-
-        .sms-bubble {
-                background: #f5f2f0;
-                border-radius: 4px 16px 16px 16px;
-                padding: 14px 16px;
-                display: flex;
-                flex-direction: column;
-                gap: 4px;
-        }
-
-        .sms-bubble p {
-                font-family: 'Inter', sans-serif;
-                font-size: 15px;
-                color: #111111;
-                line-height: 1.5;
-                margin: 0;
-        }
-
-        .sms-link {
-                color: #7c3aed;
-                font-weight: 500;
-                text-decoration: underline;
-                text-underline-offset: 2px;
-        }
-
-        .sms-time {
-                font-family: 'Inter', sans-serif;
-                font-size: 11px;
-                color: #cccccc;
-                text-align: right;
-        }
+	.navbar {
+		position: sticky;
+		top: 0;
+		z-index: 100;
+		background: #f5f2f0;
+		box-shadow: 0px 1px 2px rgba(16,24,40,0.05);
+	}
+	.navbar-inner {
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: 0 24px;
+		height: 64px;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+	.nav-logo {
+		font-family: 'DM Sans', sans-serif;
+		font-size: 20px;
+		font-weight: 700;
+		color: #000000;
+		letter-spacing: -0.3px;
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: 0;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		transition: opacity 0.15s;
+	}
+	.nav-logo-img {
+		width: 28px;
+		height: 28px;
+		border-radius: 7px;
+		object-fit: cover;
+		flex-shrink: 0;
+	}
+	.nav-logo:hover { opacity: 0.6; }
+	.nav-right { display: flex; align-items: center; gap: 10px; }
+	.btn-back {
+		font-family: 'Inter', sans-serif;
+		font-size: 13px;
+		font-weight: 500;
+		color: #333333;
+		background: none;
+		border: 1px solid #d6d6d6;
+		border-radius: 10px;
+		padding: 8px 16px;
+		cursor: pointer;
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		transition: background 0.12s, border-color 0.12s, color 0.12s;
+	}
+	.btn-back:hover { background: #ffffff; border-color: #bbbbbb; color: #000000; }
+	.btn-demo {
+		background: #000000;
+		color: #ffffff;
+		font-family: 'DM Sans', sans-serif;
+		font-size: 13px;
+		font-weight: 600;
+		border: none;
+		border-radius: 10px;
+		padding: 9px 20px;
+		cursor: pointer;
+		letter-spacing: -0.1px;
+		transition: background 0.15s, transform 0.12s;
+	}
+	.btn-demo:hover { background: #222222; transform: translateY(-1px); }
+	.btn-demo:active { transform: translateY(0); }
+	.page {
+		background: #f5f2f0;
+		min-height: calc(100vh - 64px);
+		padding: 0 24px;
+	}
+	.container { max-width: 1200px; margin: 0 auto; }
 </style>
